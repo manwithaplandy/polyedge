@@ -82,7 +82,12 @@ async def list_markets(
     else:
         source = PolymarketDataSource()
 
-    markets = await source.get_markets(active=active, limit=limit, offset=offset)
+    markets = await source.get_markets(
+        active=active,
+        limit=limit,
+        offset=offset,
+        filter_current=True,  # Explicitly filter closed/archived markets
+    )
 
     # Filter by tier if specified
     if tier:
@@ -158,7 +163,11 @@ async def get_markets_by_tier(
     else:
         source = PolymarketDataSource()
 
-    markets = await source.get_markets(limit=100)  # Get more to filter
+    markets = await source.get_markets(
+        active=True,  # Only active markets
+        limit=100,  # Get more to filter
+        filter_current=True,  # Explicitly filter closed/archived markets
+    )
     filtered = [m for m in markets if m.tier == tier_enum]
 
     # Apply pagination
