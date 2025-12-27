@@ -393,8 +393,17 @@ class MockPolymarketDataSource(DataSourceBase):
         active: Optional[bool] = True,
         limit: int = 100,
         offset: int = 0,
+        filter_current: bool = True,
     ) -> list[Market]:
-        """Return mock markets with realistic price movements."""
+        """
+        Return mock markets with realistic price movements.
+
+        Args:
+            active: Filter by Polymarket's active status
+            limit: Max markets to return
+            offset: Pagination offset
+            filter_current: If True, filters out closed/expired markets locally
+        """
         markets = []
 
         for market_data in list(self._markets.values())[offset : offset + limit]:
@@ -427,6 +436,10 @@ class MockPolymarketDataSource(DataSourceBase):
         # Filter by active status
         if active is not None:
             markets = [m for m in markets if m.active == active]
+
+        # Apply local filtering for current markets (matches real implementation)
+        if filter_current:
+            markets = [m for m in markets if is_market_current(m)]
 
         return markets
 

@@ -7,7 +7,11 @@ from typing import Optional
 from src.db.client import SupabaseClient
 from src.models.signal import Signal, SignalStatus
 from src.models.market import Market
-from src.services.data_sources.polymarket import PolymarketDataSource, MockPolymarketDataSource
+from src.services.data_sources.polymarket import (
+    PolymarketDataSource,
+    MockPolymarketDataSource,
+    is_market_current,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +45,18 @@ class SignalTracker:
         market = await self.market_source.get_market(signal.market_id)
         if not market or market.current_price is None:
             logger.warning(f"Could not get market data for signal {signal.id}")
+            return signal
+
+        # Validate market is still current and tradeable
+        # Skip tracking updates for closed/archived markets unless they need resolution
+        if not is_market_current(market):
+            # Only process market close/resolution
+            if market.closed and signal.status == SignalStatus.ACTIVE:
+                await self._resolve_signal(signal, market)
+                await self.db.update_signal(signal)
+                logger.info(f"Resolved signal {signal.id} for closed market {signal.market_id}")
+            else:
+                logger.debug(f"Skipping update for signal {signal.id} - market {signal.market_id} is no longer current")
             return signal
 
         current_price = market.current_price
